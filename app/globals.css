@@ -1,26 +1,94 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Manual dark mode via a `.dark` class on <html>, with system default. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+  Accent palette — these hues stay constant across light/dark and become
+  utilities directly (bg-terracotta, text-saffron, …).
+*/
+@theme {
+  --color-terracotta: #c75d3c; /* primary accent / brand */
+  --color-saffron: #e0a52e; /* flagged (dampened) ingredient */
+  --color-rust: #b03e28; /* ceiling / warning */
+  --color-olive: #74804b; /* secondary / steady */
+
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-inter);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/*
+  Semantic, state-driven tokens — what UI code references
+  (bg-canvas, bg-surface, text-ink, text-muted, border-line).
+  Base values: paper/ink in light, charcoal/cream in dark.
+*/
+:root {
+  --canvas: #f6f1e7; /* paper */
+  --surface: #fffdf8;
+  --surface-raised: #fffefb;
+  --ink: #2a2521; /* ink */
+  --muted: #756b5f;
+  --line: #e6dcca;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not(.light) {
+    --canvas: #17130f; /* charcoal */
+    --surface: #211b16;
+    --surface-raised: #2a2219;
+    --ink: #efe6d6; /* cream */
+    --muted: #a99d8b;
+    --line: #322a22;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+:root.dark {
+  --canvas: #17130f; /* charcoal */
+  --surface: #211b16;
+  --surface-raised: #2a2219;
+  --ink: #efe6d6; /* cream */
+  --muted: #a99d8b;
+  --line: #322a22;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans), system-ui, sans-serif;
+    /* Quantities are everywhere in this app — keep figures aligned by default. */
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display), Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-terracotta) 28%, transparent);
+  }
+}
+
+/* Quantity helper — the soul of the app is numbers; this makes them sing. */
+@utility num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }

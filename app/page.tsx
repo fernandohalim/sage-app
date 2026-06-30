@@ -1,65 +1,89 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Link from "next/link";
+import { useRecipes } from "@/components/RecipesProvider";
+
+export default function LibraryPage() {
+  const { recipes, loading } = useRecipes();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <div className="flex flex-col gap-5">
+      <div className="flex items-baseline justify-between">
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">
+          Library
+        </h1>
+        {!loading && recipes.length > 0 && (
+          <span className="num text-sm text-muted">
+            {recipes.length} {recipes.length === 1 ? "recipe" : "recipes"}
+          </span>
+        )}
+      </div>
+
+      {loading ? (
+        <ul className="flex flex-col gap-3">
+          {[0, 1, 2].map((i) => (
+            <li
+              key={i}
+              className="h-24 animate-pulse rounded-2xl border border-line bg-surface"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+          ))}
+        </ul>
+      ) : recipes.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {recipes.map((recipe) => (
+            <li key={recipe.id}>
+              <Link
+                href={`/recipe/${recipe.id}`}
+                className="block rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-terracotta/50"
+              >
+                <h2 className="font-display text-xl font-semibold text-ink">
+                  {recipe.title}
+                </h2>
+                <p className="mt-0.5 text-sm text-muted">
+                  <span className="num">{recipe.baseServings}</span> servings ·{" "}
+                  <span className="num">{recipe.ingredients.length}</span>{" "}
+                  ingredients ·{" "}
+                  <span className="num">{recipe.steps.length}</span> steps
+                </p>
+                {recipe.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {recipe.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-olive/12 px-2 py-0.5 text-xs font-medium text-olive"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-line bg-surface px-6 py-14 text-center">
+      <p className="font-display text-xl font-semibold text-ink">
+        Nothing here yet.
+      </p>
+      <p className="max-w-xs text-sm text-muted">
+        Add a recipe and Sage will scale it correctly — salt, aromatics, and
+        leavening included.
+      </p>
+      <Link
+        href="/add"
+        className="rounded-full bg-terracotta px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+      >
+        Add your first recipe
+      </Link>
     </div>
   );
 }

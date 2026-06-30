@@ -85,8 +85,8 @@ serves that one promise.
 |---|---|---|---|---|
 | 0 | Context & plan | This document | no | ✅ |
 | 1 | Scaling engine | Pure TS module + seed dictionary, fully unit-tested. Recipe/Ingredient/Step types. | no | ✅ |
-| 2 | Design tokens + shell | Tailwind theme, fonts, dark mode, mobile nav. Static. | no | ⬜ |
-| 3 | Recipe entry + library | Structured entry, list, detail, edit/delete — local persistence behind an interface. | no | ⬜ |
+| 2 | Design tokens + shell | Tailwind theme, fonts, dark mode, mobile nav. Static. | no | ✅ |
+| 3 | Recipe entry + library | Structured entry, list, detail, edit/delete — local persistence behind an interface. | no | ✅ |
 | 4 | Scaling UI | Slider → live numbers, anchor scaling, flagged ingredients, advisories. | no | ⬜ |
 | 5 | Cook mode | Inline scaled amounts, concurrent timers, Wake Lock. | no | ⬜ |
 | 6 | URL import | JSON-LD parse + auto-classify + structured fallback. | no | ⬜ |
@@ -120,6 +120,80 @@ fixed n/a. `SCALING_CEILING = 3.5`.
 - `discrete_aromatic` k=0.7 → 1→2 at 2×, 1→3 at 4×. Lower to keep singles at 1 longer.
 - `fixed` ingredients report `wasAdjusted: true` (diverge from naive) — UI shows
   "kept unchanged". Flip if a fresh decision wants `fixed` to read as not-adjusted.
+
+### Phase 2 — done (2026-06-30)
+Design system + mobile app shell. **`tsc` clean, lint clean, `next build` green,
+50 engine tests still pass.** No Firebase, no real data — static shell.
+
+- `app/globals.css` — Tailwind v4 theme. Accent palette in `@theme`
+  (terracotta/saffron/rust/olive, constant across modes). State-driven semantic
+  tokens (`canvas`/`surface`/`ink`/`muted`/`line`) swap light↔dark via CSS vars
+  → utilities `bg-canvas`, `text-ink`, `border-line`, etc. `tabular-nums` on by
+  default in `body` + `num` utility. Base values: paper/ink (light),
+  charcoal/cream (dark).
+- `app/layout.tsx` — Fraunces (display) + Inter (UI) via `next/font`. Real
+  metadata + viewport (theme-color, safe-area). No-FOUC inline script reads
+  `localStorage["sage-theme"]` before paint. Wraps `AppShell`.
+- `components/AppShell.tsx` — sticky header (Sage brand + theme toggle), centered
+  `max-w-2xl` main, bottom nav.
+- `components/BottomNav.tsx` — mobile nav (Library `/` · Add `/add` · Settings
+  `/settings`), active state via `usePathname`. Target routes land in Phase 3+.
+- `components/ThemeToggle.tsx` — light/dark toggle. `useSyncExternalStore` over
+  DOM class + `matchMedia` (lint-clean, no hydration mismatch).
+- `app/page.tsx` — static showcase home: one illustrative 4× recipe card
+  exercising every token (saffron "dampened" flag, rust ceiling banner, olive
+  taste-and-adjust advisory). Phase 3 replaces this with the real library.
+
+**Notes / decisions:**
+- Dark mode strategy: `.dark`/`.light` class on `<html>` overrides, else system
+  via `prefers-color-scheme`. Custom variant `@custom-variant dark`.
+- **Gotcha fixed:** semantic token names must not collide with `@theme` token
+  names — `--ink: var(--color-ink)` created a circular ref. Accent names are
+  `@theme`; semantic names are plain `:root` vars mapped via `@theme inline`.
+- Removed default CRA scaffold SVGs from `public/`. Added `.claude/launch.json`
+  (`sage-dev`, port 3000) for preview.
+- Env note: local `node` was broken (Homebrew `libllhttp.9.3` missing);
+  symlinked to `9.4.2` to unblock. Not a project change.
+
+### Phase 3 — done (2026-06-30)
+Recipe entry, library, detail, edit, delete — all on local persistence behind a
+swappable interface. **`tsc` clean, lint clean, `next build` green, 50 engine
+tests still pass.** Verified end-to-end in the browser (create → persist →
+reload → delete, edit pre-fill incl. step→ingredient refs round-trip).
+
+Persistence (the Phase 7 seam):
+- `lib/store/repository.ts` — `RecipeRepository` interface (async) + `RecipeInput`
+  (`Omit<Recipe,"id"|"createdAt">`). **Every caller talks to this, never storage.**
+- `lib/store/localRepository.ts` — localStorage impl. Keys `sage:recipes` +
+  `sage:seeded`. SSR-safe (guards `window`).
+- `lib/store/seed.ts` — two first-run sample recipes (Tomato Soup, Sandwich
+  Bread) spanning every scaling class. Seeded once; an emptied library stays empty.
+- `lib/store/index.ts` — exports the singleton `recipeRepository`. **Phase 7
+  swaps this one line (local → Firestore); nothing else moves.**
+
+UI:
+- `components/RecipesProvider.tsx` — client context + `useRecipes()`. Loads once,
+  exposes reactive `recipes`/`loading`/`getRecipe`/`create`/`update`/`remove`.
+  Wired into `AppShell` around the page content.
+- `components/RecipeForm.tsx` — structured create/edit. Dynamic ingredient + step
+  rows. **Auto-classifies ingredients by name via `classifyOrDefault`; manual
+  class override sticks (per-row `classTouched`).** Steps carry optional timer
+  (minutes) + toggleable ingredient-ref chips. Removing an ingredient prunes its
+  refs. Draft amounts/timers held as strings, parsed on submit.
+- `lib/format.ts` — `formatAmount`/`formatQuantity`/`formatTimer` + scaling-class
+  labels/hints/order (shared by form + detail).
+- Routes: `/` library list (replaced the Phase 2 showcase), `/add`,
+  `/recipe/[id]` detail + delete (two-step confirm), `/recipe/[id]/edit`,
+  `/settings` (about + "reset to sample recipes", kills the dead nav link).
+
+**Decisions / notes:**
+- Repository is **async** even though localStorage is sync — keeps the Firestore
+  swap a no-op for callers.
+- IDs via `crypto.randomUUID()` (recipe + ingredient + step). Ingredient ids are
+  generated as rows are added so step refs bind immediately in the editor.
+- Scaling UI is **not** here — detail shows base amounts only. The slider, anchor,
+  advisories surface in Phase 4 (engine already supports them).
+- `fixed`-class display nuance from Phase 1 is still deferred until Phase 4 UI.
 
 ---
 
