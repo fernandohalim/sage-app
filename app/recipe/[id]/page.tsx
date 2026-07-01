@@ -4,11 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useRecipes } from "@/components/RecipesProvider";
-import {
-  formatQuantity,
-  formatTimer,
-  SCALING_CLASS_LABEL,
-} from "@/lib/format";
+import { RecipeScaler } from "@/components/RecipeScaler";
+import { formatTimer } from "@/lib/format";
 
 export default function RecipeDetailPage() {
   const params = useParams<{ id: string }>();
@@ -79,27 +76,8 @@ export default function RecipeDetailPage() {
         )}
       </header>
 
-      {/* Ingredients */}
-      <section className="flex flex-col gap-3">
-        <h2 className="font-display text-lg font-semibold text-ink">
-          Ingredients
-        </h2>
-        <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
-          {recipe.ingredients.map((ing) => (
-            <li key={ing.id} className="flex items-center gap-4 px-4 py-3">
-              <span className="num w-20 shrink-0 text-right text-[15px] font-semibold text-ink">
-                {formatQuantity(ing.amount, ing.unit)}
-              </span>
-              <span className="flex-1 text-[15px] text-ink">{ing.name}</span>
-              {ing.scalingClass !== "linear" && (
-                <span className="shrink-0 rounded-full bg-saffron/15 px-2 py-0.5 text-[11px] font-medium text-saffron">
-                  {SCALING_CLASS_LABEL[ing.scalingClass]}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
+      {/* Ingredients + scaling (the signature interaction) */}
+      <RecipeScaler recipe={recipe} />
 
       {/* Steps */}
       {recipe.steps.length > 0 && (

@@ -87,8 +87,8 @@ serves that one promise.
 | 1 | Scaling engine | Pure TS module + seed dictionary, fully unit-tested. Recipe/Ingredient/Step types. | no | ✅ |
 | 2 | Design tokens + shell | Tailwind theme, fonts, dark mode, mobile nav. Static. | no | ✅ |
 | 3 | Recipe entry + library | Structured entry, list, detail, edit/delete — local persistence behind an interface. | no | ✅ |
-| 4 | Scaling UI | Slider → live numbers, anchor scaling, flagged ingredients, advisories. | no | ⬜ |
-| 5 | Cook mode | Inline scaled amounts, concurrent timers, Wake Lock. | no | ⬜ |
+| 4 | Scaling UI | Slider → live numbers, anchor scaling, flagged ingredients, advisories. | no | ✅ |
+| 5 | Cook mode | Inline scaled amounts, concurrent timers, Wake Lock. | no | ✅ |
 | 6 | URL import | JSON-LD parse + auto-classify + structured fallback. | no | ⬜ |
 | 7 | Firebase auth + sync | Google sign-in; swap local persistence → Firestore (offline); rules; seed dictionary collection. | yes | ⬜ |
 | 8 | PWA polish | Manifest, service worker, install, offline verification, final design pass. | yes | ⬜ |
@@ -194,6 +194,78 @@ UI:
 - Scaling UI is **not** here — detail shows base amounts only. The slider, anchor,
   advisories surface in Phase 4 (engine already supports them).
 - `fixed`-class display nuance from Phase 1 is still deferred until Phase 4 UI.
+
+### Phase 4 — done (2026-07-01)
+The signature interaction. The recipe detail page now scales live off the pure
+engine (built since Phase 1). **`tsc` clean, lint clean, 50 engine tests still
+pass.** `next build` not verified locally — this env has no outbound access to
+`fonts.googleapis.com`, so `next/font/google` fails to fetch Fraunces/Inter at
+build; failure is identical with or without these changes (pre-existing, not
+Phase 4). Code compiles (tsc/lint green).
+
+- `components/RecipeScaler.tsx` — client component, the whole interaction:
+  - **Two modes** (pill toggle): *Servings* (yield slider) and *I have…* (anchor).
+  - Servings: range slider `1 → baseServings×4` (past the 3.5 ceiling so the rust
+    warning is reachable) + ½× / 1× / 2× / 3× preset chips. Live target-servings
+    readout + factor badge (terracotta when scaled, quiet at base).
+  - Anchor: amount input + ingredient select (only non-`fixed`, amount > 0 rows
+    are offered — those are the only ones that can define a factor). Calls
+    `scaleByAnchor`; guards bad input by falling back to factor 1.
+  - Scaled ingredient list with **per-ingredient flags**: `dampened` → saffron
+    amount + pill + "full scale would be X" (the vs-linear delta); `discrete_aromatic`
+    → "rounded to whole pieces"; `fixed` → "kept unchanged". All suppressed at base.
+  - Advisories surfaced by severity → palette: info = olive dot / quiet, heads_up
+    = saffron, serious (ceiling) = rust. Taste-and-adjust voice from the engine.
+- `app/recipe/[id]/page.tsx` — static base-amount ingredients `<section>` replaced
+  by `<RecipeScaler recipe={recipe} />`. Header / tags / method / delete unchanged.
+
+**Decisions / notes:**
+- All scaling math stays in `lib/engine`; the component only presents `ScaleResult`.
+  No engine changes this phase.
+- **Resolved a Phase-1 deferred nuance at the UI layer:** `fixed` ingredients
+  report `wasAdjusted: true` (their base diverges from the naive multiple), so the
+  row reads "kept unchanged" rather than showing a dampening flag.
+- Slider yields **integer** servings (min 1). Scale-down below 1× on a base of 1
+  is available via anchor mode (fractional factor), not the slider.
+- Engine exponent tweaks still deferred (surface k=0.25, discrete_aromatic k=0.7) —
+  left for real-use tuning; UI now makes their effect visible.
+- Cook-mode inline scaled amounts in steps are still Phase 5 — Method shows base text.
+
+### Phase 5 — done (2026-07-01)
+Cook mode: enlarged, high-contrast, hands-free-friendly. Scales off the same pure
+engine as Phase 4. **`tsc` clean, lint clean, 50 engine tests still pass.** New
+`/recipe/[id]/cook` route compiles + serves 200 on the live dev server. Full
+`next build` still not verifiable in this env (Google Fonts fetch — see Phase 4).
+Interactive bits (timers ticking, wake lock, chime) need a real browser to
+confirm — verify on the running instance.
+
+- `lib/useWakeLock.ts` — Screen Wake Lock hook. Holds the lock while active,
+  re-acquires on tab re-focus, degrades silently where unsupported/denied.
+- `components/CookMode.tsx` — the mode:
+  - **Inline scaled amounts** per step: each step's `ingredientRefs` resolve to
+    the scaled `ScaledIngredient` and render as chips (dampened ones in saffron).
+  - **Concurrent timers**: one countdown per timer-bearing step, driven by a
+    single 1s interval; any number run at once. Tappable start / restart / clear.
+    A **fixed bottom bar** keeps every live/finished timer visible while scrolling.
+  - On zero: gentle WebAudio chime + `navigator.vibrate` (both guarded), plus a
+    rust "Time's up" state. Fires once per run.
+  - Enlarged type (text-lg/xl), size-9 step badges, big touch targets, "Done"
+    exit back to detail.
+- `app/recipe/[id]/cook/page.tsx` — client route. Reads `?factor=` (falls back to
+  1); `useSearchParams` wrapped in `<Suspense>` per Next's requirement.
+- `components/RecipeScaler.tsx` — added a **"Start cooking"** button that carries
+  the currently chosen `factor` into cook mode via the query string (shown only
+  when the recipe has steps; labels the multiple when scaled).
+
+**Decisions / notes:**
+- Scale is passed by **`factor`** (not servings) so anchor-derived fractional
+  scales survive the hop into cook mode exactly.
+- One timer per step keyed by `step.id`; starting again resets that step's timer.
+- Bottom timer bar sits at `bottom-16` to clear the global `BottomNav`. Cook mode
+  still lives inside the normal `AppShell` (nav visible) — an immersive full-bleed
+  variant is out of scope for v1.
+- Steps still show base `step.text`; only the ingredient-ref chips are scaled
+  (we don't rewrite prose numbers — that's not in v1 scope).
 
 ---
 
